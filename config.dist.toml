@@ -1,0 +1,17 @@
+[[users]]
+active = true
+discord_id = 123456789
+token = "<token>"
+command_prefix = "s."
+emote_prefix = ">"
+text_emote_prefix = "$"
+palette = true
+
+[[users]]
+active = false
+discord_id = 123456789
+token = "<token>"
+command_prefix = "/sp "
+emote_prefix = "?"
+text_emote_prefix = ":"
+palette = false
