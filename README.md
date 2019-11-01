@@ -1,5 +1,7 @@
 # Selfportrait
 
+[![Actions Status](https://github.com/r-o-b-o-t-o/selfportrait/workflows/Rust/badge.svg)](https://github.com/r-o-b-o-t-o/selfportrait/actions)
+
 ## Disclaimer ⚠
 
 Self-bots are [forbidden by Discord](https://support.discordapp.com/hc/en-us/articles/115002192352-Automated-user-accounts-self-bots-).  
