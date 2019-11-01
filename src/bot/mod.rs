@@ -111,6 +111,9 @@ impl Bot {
                 content_text.push_str(" ");
             }
         }
+        if !content_text.is_empty() {
+            self.send_message(ctx, &msg, event, |m| m.content(&content_text))?;
+        }
 
         Ok(delete_message)
     }
@@ -153,6 +156,7 @@ impl Bot {
 
     fn edit_message<F>(&self, ctx: &Context, msg: &mut Option<&mut Message>, event: Option<&MessageUpdateEvent>, f: F) -> serenity::Result<()>
     where F: FnOnce(&mut EditMessage) -> &mut EditMessage {
+
         if let Some(msg) = msg {
             return msg.edit(ctx, f);
         } else if let Some(event) = event {
@@ -190,6 +194,17 @@ impl Bot {
             return Ok(Some(msg.channel_id.send_files(ctx, files, f)?));
         } else if let Some(event) = event {
             return Ok(Some(event.channel_id.send_files(ctx, files, f)?));
+        }
+        Ok(None)
+    }
+
+    fn send_message<'a, F>(&self, ctx: &Context, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>, f: F) -> serenity::Result<Option<Message>>
+    where for <'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a> {
+
+        if let Some(msg) = msg {
+            return Ok(Some(msg.channel_id.send_message(ctx, f)?));
+        } else if let Some(event) = event {
+            return Ok(Some(event.channel_id.send_message(ctx, f)?));
         }
         Ok(None)
     }
