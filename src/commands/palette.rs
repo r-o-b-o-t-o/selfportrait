@@ -3,11 +3,8 @@ use crate::{
     error::Result,
 };
 
-use serenity::{
-    prelude::*,
-    model::channel::Message,
-};
+use serenity::prelude::*;
 
-pub fn command(_bot: &Bot, _ctx: &Context, _msg: &Message) -> Result<()> {
+pub fn command(_bot: &Bot, _ctx: &Context) -> Result<()> {
     Ok(())
 }

@@ -14,13 +14,15 @@ use crate::{
 
 use serenity::{
     prelude::*,
+    http::AttachmentType,
     framework::standard::StandardFramework,
-    model::{ channel::Message, gateway::Ready },
+    builder::{ EditMessage, CreateMessage },
+    model::{ channel::Message, gateway::Ready, event::MessageUpdateEvent },
 };
 
 pub struct Bot {
     pub user: User,
-    commands: HashMap<String, fn(&Bot, &Context, &Message) -> Result<()>>,
+    commands: HashMap<String, fn(&Bot, &Context) -> Result<()>>,
 }
 
 impl Bot {
@@ -38,12 +40,25 @@ impl Bot {
 impl EventHandler for Bot {
     fn message(&self, ctx: Context, msg: Message) {
         if self.user.discord_id != msg.author.id.0 {
-            // Respond to messages sent only by the user themselves
+            // Respond only to messages sent by the user themselves
             return;
         }
 
-        if let Err(err) = self.handle_message(ctx, msg) {
+        if let Err(err) = self.handle_message(ctx, Some(msg), None) {
             log::error!("Error while handling message: {}", err);
+        }
+    }
+
+    fn message_update(&self, ctx: Context, _old: Option<Message>, _new: Option<Message>, event: MessageUpdateEvent) {
+        if let Some(author) = &event.author {
+            if author.id != self.user.discord_id {
+                // Update only messages sent by the user themselves
+                return;
+            }
+
+            if let Err(err) = self.handle_message(ctx, None, Some(&event)) {
+                log::error!("Error while handling message update: {}", err);
+            }
         }
     }
 
@@ -53,27 +68,28 @@ impl EventHandler for Bot {
 }
 
 impl Bot {
-    fn handle_message(&self, ctx: Context, mut msg: Message) -> Result<()> {
+    fn handle_message(&self, ctx: Context, mut msg: Option<Message>, event: Option<&MessageUpdateEvent>) -> Result<()> {
         let mut delete_message = false;
 
-        self.handle_text_emotes(&ctx, &mut msg)?;
-        if self.handle_emotes(&ctx, &mut msg)? {
+        self.handle_text_emotes(&ctx, msg.as_mut(), event)?;
+        if self.handle_emotes(&ctx, msg.as_mut(), event)? {
             delete_message = true;
         }
-        if !delete_message && self.handle_commands(&ctx, &msg)? {
+        if !delete_message && self.handle_commands(&ctx, msg.as_mut(), event)? {
             delete_message = true;
         }
 
         if delete_message {
-            msg.channel_id.delete_message(&ctx.http, msg)?;
+            self.delete_message(&ctx, &msg, event)?;
         }
         Ok(())
     }
 
-    fn handle_emotes(&self, ctx: &Context, msg: &mut Message) -> Result<bool> {
+    fn handle_emotes(&self, ctx: &Context, msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<bool> {
         let prefix = &self.user.emote_prefix;
+        let content = self.message_content(&msg, event);
 
-        if !msg.content.contains(prefix) {
+        if !content.contains(prefix) {
             return Ok(false);
         }
 
@@ -82,11 +98,11 @@ impl Bot {
         let data = ctx.data.read();
         let mngr = data.get::<EmoteManager>().ok_or(Error::new(ErrorKind::DataGet))?;
 
-        for word in msg.content.split_whitespace() {
+        for word in content.split_whitespace() {
             if word.starts_with(prefix) {
                 let emote_name = word.trim_start_matches(prefix);
                 if let Some(emote) = mngr.find_emote_by_name(emote_name) {
-                    msg.channel_id.send_files(&ctx.http, vec![emote.as_attachment()], |m| m.content(&content_text))?;
+                    self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(&content_text))?;
                     content_text = "".into();
                     delete_message = true;
                 }
@@ -99,42 +115,88 @@ impl Bot {
         Ok(delete_message)
     }
 
-    fn handle_text_emotes(&self, ctx: &Context, msg: &mut Message) -> Result<()> {
-        if !msg.content.contains(&self.user.text_emote_prefix) {
+    fn handle_text_emotes(&self, ctx: &Context, mut msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<()> {
+        if !self.message_content(&msg, event).contains(&self.user.text_emote_prefix) {
             return Ok(());
         }
 
-        self.replace_text_emote(ctx, msg, &["lf", "lennyface", "lenny"], "( ͡° ͜ʖ ͡°)")?;
-        self.replace_text_emote(ctx, msg, &["shrug", "s"], "¯\\\\\\_(ツ)\\_/¯")?;
+        self.replace_text_emote(ctx, &mut msg, event, &["lf", "lennyface", "lenny"], "( ͡° ͜ʖ ͡°)")?;
+        self.replace_text_emote(ctx, &mut msg, event, &["shrug", "s"], "¯\\\\\\_(ツ)\\_/¯")?;
         Ok(())
     }
 
-    fn replace_text_emote(&self, ctx: &Context, msg: &mut Message, triggers: &[&str], emote: &str) -> Result<()> {
+    fn replace_text_emote(&self, ctx: &Context, msg: &mut Option<&mut Message>, event: Option<&MessageUpdateEvent>, triggers: &[&str], emote: &str) -> Result<()> {
         let prefix = &self.user.text_emote_prefix;
+        let content = self.message_content(&msg, event);
 
-        if triggers.iter().any(|trigger| msg.content.contains(&format!("{}{}", prefix, trigger))) {
-            let mut edited = msg.content.clone();
+        if triggers.iter().any(|trigger| content.contains(&format!("{}{}", prefix, trigger))) {
+            let mut edited = content;
             for trigger in triggers {
                 edited = edited.replace(&format!("{}{}", prefix, trigger), emote);
             }
 
-            msg.edit(ctx, |m| m.content(edited))?;
+            self.edit_message(ctx, msg, event, |m| m.content(edited))?;
         }
         Ok(())
     }
 
-    fn handle_commands(&self, ctx: &Context, msg: &Message) -> Result<bool> {
+    fn handle_commands(&self, ctx: &Context, msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<bool> {
         let prefix = &self.user.command_prefix;
-        if !msg.content.starts_with(prefix) {
+        let content = self.message_content(&msg, event);
+
+        if !content.starts_with(prefix) {
             return Ok(false);
         }
         for (command_name, func) in self.commands.iter() {
-            if msg.content.starts_with(&format!("{}{}", prefix, command_name)) {
-                func(self, ctx, msg)?;
+            if content.starts_with(&format!("{}{}", prefix, command_name)) {
+                func(self, ctx)?;
                 return Ok(true);
             }
         }
         Ok(false)
+    }
+
+    fn edit_message<F>(&self, ctx: &Context, msg: &mut Option<&mut Message>, event: Option<&MessageUpdateEvent>, f: F) -> serenity::Result<()>
+    where F: FnOnce(&mut EditMessage) -> &mut EditMessage {
+        if let Some(msg) = msg {
+            return msg.edit(ctx, f);
+        } else if let Some(event) = event {
+            event.channel_id.edit_message(ctx, event.id, f)?;
+        }
+        Ok(())
+    }
+
+    fn delete_message(&self, ctx: &Context, msg: &Option<Message>, event: Option<&MessageUpdateEvent>) -> serenity::Result<()> {
+        if let Some(msg) = msg {
+            return msg.channel_id.delete_message(&ctx, msg);
+        } else if let Some(event) = event {
+            return event.channel_id.delete_message(&ctx, event.id);
+        }
+        Ok(())
+    }
+
+    fn message_content(&self, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> String {
+        if let Some(msg) = msg {
+            return msg.content.clone();
+        } else if let Some(event) = event {
+            if let Some(content) = &event.content {
+                return content.clone();
+            }
+        }
+        "".into()
+    }
+
+    fn send_files<'a, It, T, F>(&self, ctx: &Context, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>, files: It, f: F) -> serenity::Result<Option<Message>>
+    where T: Into<AttachmentType<'a>>,
+            It: IntoIterator<Item = T>,
+            for <'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a> {
+
+        if let Some(msg) = msg {
+            return Ok(Some(msg.channel_id.send_files(ctx, files, f)?));
+        } else if let Some(event) = event {
+            return Ok(Some(event.channel_id.send_files(ctx, files, f)?));
+        }
+        Ok(None)
     }
 
     pub fn start(user: User, config: Arc<Mutex<Config>>, emotes_mngr: Arc<EmoteManager>) -> Result<()> {
