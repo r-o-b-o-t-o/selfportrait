@@ -31,7 +31,7 @@ impl EmoteManager {
             let mut path = PathBuf::from(assets_directory);
             path.push(dir);
             if let Err(err) = mngr.load_emotes_in_dir(&path) {
-                eprintln!("Could not load emotes from directory {}: {}", path.display(), err);
+                log::error!("Could not load emotes from directory {}: {}", path.display(), err);
             }
         }
 

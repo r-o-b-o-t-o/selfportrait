@@ -18,7 +18,7 @@ fn load_config() -> Config {
 }
 
 fn load_emotes() -> EmoteManager {
-    println!("Loading emotes...");
+    log::info!("Loading emotes...");
     let emotes_path = PathBuf::from("assets");
     EmoteManager::new(&emotes_path)
 }
@@ -26,19 +26,36 @@ fn load_emotes() -> EmoteManager {
 fn setup_ctrl_c(running: Arc<AtomicBool>) {
     ctrlc::set_handler(move || {
         running.store(false, Ordering::SeqCst);
-    }).expect("Error setting Ctrl-C handler");
+    }).expect("Could not set Ctrl-C handler");
+}
+
+fn setup_logging(config: &Config) {
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d %H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message,
+            ))
+        })
+        .level(config.log_level)
+        .chain(std::io::stdout())
+        .chain(fern::log_file(&config.log_file).expect(&format!("Could not open log file {}", config.log_file.display())))
+        .apply().expect("Could not setup logging");
 }
 
 fn main() {
     let config = load_config();
-    let config_shared = Arc::new(Mutex::new(config.clone()));
-
+    setup_logging(&config);
     let running = Arc::new(AtomicBool::new(true));
     setup_ctrl_c(running.clone());
 
+    let config_shared = Arc::new(Mutex::new(config.clone()));
     let emote_mngr = Arc::new(load_emotes());
 
-    println!("Starting bots...");
+    log::info!("Starting bots...");
     for user in config.users {
         let config_shared = config_shared.clone();
         let emote_mngr = emote_mngr.clone();

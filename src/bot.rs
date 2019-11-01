@@ -37,7 +37,7 @@ impl EventHandler for Bot {
     }
 
     fn ready(&self, _ctx: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
+        log::info!("{} is connected!", ready.user.name);
     }
 }
 
@@ -55,7 +55,7 @@ impl Bot {
         let mngr = match data.get::<EmoteManager>() {
             Some(mngr) => mngr,
             None => {
-                eprintln!("Could not get emote manager");
+                log::error!("Could not get emote manager");
                 return false;
             }
         };
@@ -69,7 +69,7 @@ impl Bot {
                             content_text = "".into();
                             delete_message = true;
                         },
-                        Err(err) => eprintln!("Could not send emote: {}", err),
+                        Err(err) => log::error!("Could not send emote: {}", err),
                     };
                 }
             } else {
