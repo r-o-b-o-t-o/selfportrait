@@ -22,12 +22,17 @@ impl Emote {
 
 pub struct EmoteManager {
     emotes: Vec<Emote>,
+    text_emotes: Vec<(Vec<&'static str>, &'static str)>,
 }
 
 impl EmoteManager {
     pub fn new(assets_directory: &Path) -> Result<Self> {
         let mut mngr = Self {
             emotes: Vec::new(),
+            text_emotes: vec![
+                (vec!["lf", "lennyface", "lenny"], "( ͡° ͜ʖ ͡°)"),
+                (vec!["shrug", "s"], "¯\\\\\\_(ツ)\\_/¯"),
+            ],
         };
 
         for dir in ["emojis", "gifs", "sounds"].iter() {
@@ -73,6 +78,10 @@ impl EmoteManager {
 
     pub fn n_emotes(&self) -> usize {
         self.emotes.len()
+    }
+
+    pub fn text_emotes(&self) -> &Vec<(Vec<&'static str>, &'static str)> {
+        &self.text_emotes
     }
 }
 

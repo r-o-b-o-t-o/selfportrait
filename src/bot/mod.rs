@@ -116,27 +116,22 @@ impl Bot {
     }
 
     fn handle_text_emotes(&self, ctx: &Context, mut msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<()> {
-        if !self.message_content(&msg, event).contains(&self.user.text_emote_prefix) {
+        let prefix = &self.user.text_emote_prefix;
+        if !self.message_content(&msg, event).contains(prefix) {
             return Ok(());
         }
 
-        self.replace_text_emote(ctx, &mut msg, event, &["lf", "lennyface", "lenny"], "( ͡° ͜ʖ ͡°)")?;
-        self.replace_text_emote(ctx, &mut msg, event, &["shrug", "s"], "¯\\\\\\_(ツ)\\_/¯")?;
-        Ok(())
-    }
+        let data = ctx.data.read();
+        let mngr = data.get::<EmoteManager>().ok_or(Error::new(ErrorKind::DataGet))?;
+        let mut content = self.message_content(&msg, event);
 
-    fn replace_text_emote(&self, ctx: &Context, msg: &mut Option<&mut Message>, event: Option<&MessageUpdateEvent>, triggers: &[&str], emote: &str) -> Result<()> {
-        let prefix = &self.user.text_emote_prefix;
-        let content = self.message_content(&msg, event);
-
-        if triggers.iter().any(|trigger| content.contains(&format!("{}{}", prefix, trigger))) {
-            let mut edited = content;
+        for (triggers, emote) in mngr.text_emotes() {
             for trigger in triggers {
-                edited = edited.replace(&format!("{}{}", prefix, trigger), emote);
+                content = content.replace(&format!("{}{}", prefix, trigger), emote);
             }
-
-            self.edit_message(ctx, msg, event, |m| m.content(edited))?;
         }
+        self.edit_message(ctx, &mut msg, event, |m| m.content(content))?;
+
         Ok(())
     }
 

@@ -21,7 +21,7 @@ fn load_emotes() -> Result<EmoteManager> {
     log::info!("Loading emotes...");
     let emotes_path = PathBuf::from("assets");
     let mngr = EmoteManager::new(&emotes_path)?;
-    log::info!("Loaded {} emotes.", mngr.n_emotes());
+    log::info!("Loaded {} emote assets.", mngr.n_emotes());
     Ok(mngr)
 }
 
