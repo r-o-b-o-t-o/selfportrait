@@ -1,35 +1,37 @@
 pub mod bot;
-pub mod user;
+pub mod error;
 pub mod config;
+pub mod commands;
 pub mod emote_manager;
 
-use config::Config;
-use emote_manager::EmoteManager;
-
-use std::sync::{
-    Arc, Mutex,
-    atomic::{ AtomicBool, Ordering },
+use std::{
+    thread,
+    sync::{
+        Arc, Mutex,
+        atomic::{ AtomicBool, Ordering },
+    },
+    path::PathBuf,
 };
-use std::path::PathBuf;
 
-fn load_config() -> Config {
-    let config_str = std::fs::read_to_string("config.toml").expect("Could not read the configuration file config.toml");
-    toml::from_str(&config_str).expect("Could not parse the configuration")
-}
+use emote_manager::EmoteManager;
+use config::{ Config, LoggingConfig };
+use error::{ Error, ErrorKind, Result };
 
-fn load_emotes() -> EmoteManager {
+fn load_emotes() -> Result<EmoteManager> {
     log::info!("Loading emotes...");
     let emotes_path = PathBuf::from("assets");
-    EmoteManager::new(&emotes_path)
+    let mngr = EmoteManager::new(&emotes_path)?;
+    log::info!("Loaded {} emotes.", mngr.n_emotes());
+    Ok(mngr)
 }
 
-fn setup_ctrl_c(running: Arc<AtomicBool>) {
+fn setup_ctrl_c(running: Arc<AtomicBool>) -> Result<()> {
     ctrlc::set_handler(move || {
         running.store(false, Ordering::SeqCst);
-    }).expect("Could not set Ctrl-C handler");
+    }).map_err(|err| Error::from(ErrorKind::CtrlCHandler, err))
 }
 
-fn setup_logging(config: &Config) {
+fn setup_logging(config: &LoggingConfig) -> Result<()> {
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -40,27 +42,33 @@ fn setup_logging(config: &Config) {
                 message,
             ))
         })
-        .level(config.log_level)
+        .level(config.level)
         .chain(std::io::stdout())
-        .chain(fern::log_file(&config.log_file).expect(&format!("Could not open log file {}", config.log_file.display())))
-        .apply().expect("Could not setup logging");
+        .chain(fern::log_file(&config.file).map_err(|err| Error::from(ErrorKind::LogFile, err))?)
+        .apply().map_err(|err| Error::from(ErrorKind::Logging, err))
 }
 
-fn main() {
-    let config = load_config();
-    setup_logging(&config);
+fn main() -> Result<()> {
+    let config = Config::load()?;
+    setup_logging(&config.logging)?;
     let running = Arc::new(AtomicBool::new(true));
-    setup_ctrl_c(running.clone());
+    setup_ctrl_c(running.clone())?;
 
     let config_shared = Arc::new(Mutex::new(config.clone()));
-    let emote_mngr = Arc::new(load_emotes());
+    let emote_mngr = Arc::new(load_emotes()?);
 
     log::info!("Starting bots...");
     for user in config.users {
+        if !user.active {
+            continue;
+        }
         let config_shared = config_shared.clone();
         let emote_mngr = emote_mngr.clone();
-        std::thread::spawn(move || {
-            let _ = bot::Bot::start(user, config_shared, emote_mngr);
+        thread::spawn(move || {
+            let user_id = user.discord_id;
+            if let Err(err) = bot::Bot::start(user, config_shared, emote_mngr) {
+                log::error!("Error while starting bot for user {}: {}", user_id, err);
+            }
         });
     }
 
@@ -68,4 +76,7 @@ fn main() {
     while running.load(Ordering::SeqCst) {
         std::thread::sleep(loop_sleep);
     }
+    log::info!("Shutting down.");
+
+    Ok(())
 }

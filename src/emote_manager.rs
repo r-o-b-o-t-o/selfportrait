@@ -1,6 +1,9 @@
-use std::sync::Arc;
-use std::io::Result;
-use std::path::{ Path, PathBuf };
+use std::{
+    sync::Arc,
+    path::{ Path, PathBuf },
+};
+
+use crate::error::{ Error, ErrorKind, Result };
 
 use typemap::Key;
 
@@ -22,7 +25,7 @@ pub struct EmoteManager {
 }
 
 impl EmoteManager {
-    pub fn new(assets_directory: &Path) -> Self {
+    pub fn new(assets_directory: &Path) -> Result<Self> {
         let mut mngr = Self {
             emotes: Vec::new(),
         };
@@ -30,24 +33,34 @@ impl EmoteManager {
         for dir in ["emojis", "gifs", "sounds"].iter() {
             let mut path = PathBuf::from(assets_directory);
             path.push(dir);
-            if let Err(err) = mngr.load_emotes_in_dir(&path) {
-                log::error!("Could not load emotes from directory {}: {}", path.display(), err);
-            }
+            mngr.load_emotes_in_dir(&path).map_err(|err| Error::from(ErrorKind::LoadEmotes, err))?;
         }
 
-        mngr
+        Ok(mngr)
     }
 
-    fn load_emotes_in_dir(&mut self, dir: &Path) -> Result<()> {
+    fn load_emotes_in_dir(&mut self, dir: &Path) -> std::io::Result<()> {
         for entry in dir.read_dir()? {
             let entry = entry?;
             let path = entry.path();
+
             if path.is_file() {
+                let bytes = std::fs::read(&path)?;
+                let file_name = path.file_name()
+                                    .ok_or(std::io::Error::new(std::io::ErrorKind::Other, "no file name"))?
+                                    .to_string_lossy()
+                                    .into();
+                let name = path.with_extension("")
+                                .file_name()
+                                .ok_or(std::io::Error::new(std::io::ErrorKind::Other, "no file name"))?
+                                .to_string_lossy()
+                                .into();
+
                 self.emotes.push(Emote {
-                    path: path.clone(),
-                    file_name: path.file_name().unwrap().to_string_lossy().into(),
-                    name: path.with_extension("").file_name().unwrap().to_string_lossy().into(),
-                    bytes: std::fs::read(path)?,
+                    path,
+                    file_name,
+                    name,
+                    bytes,
                 });
             }
         }
@@ -56,6 +69,10 @@ impl EmoteManager {
 
     pub fn find_emote_by_name(&self, name: &str) -> Option<&Emote> {
         self.emotes.iter().find(|emote| emote.name == name)
+    }
+
+    pub fn n_emotes(&self) -> usize {
+        self.emotes.len()
     }
 }
 

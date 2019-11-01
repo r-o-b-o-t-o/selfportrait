@@ -1,5 +1,6 @@
-log_file = "selfportrait.log"
-log_level = "Info"
+[logging]
+file = "selfportrait.log"
+level = "Info"
 
 [[users]]
 active = true
@@ -8,7 +9,6 @@ token = "<token>"
 command_prefix = "s."
 emote_prefix = ">"
 text_emote_prefix = "$"
-palette = true
 
 [[users]]
 active = false
@@ -17,4 +17,3 @@ token = "<token>"
 command_prefix = "/sp "
 emote_prefix = "?"
 text_emote_prefix = ":"
-palette = false
