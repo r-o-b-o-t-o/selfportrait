@@ -1,0 +1,33 @@
+#searchbar {
+    padding-top: 20px;
+}
+
+.emotes-content {
+    margin-top: 12px;
+}
+
+.accordion-content {
+    max-height: 0px;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out;
+}
+
+.emote-header {
+    text-decoration: none !important;
+    width: 100%;
+    display: inline-block;
+}
+
+.emote-header .fas {
+    margin-right: 12px;
+}
+
+.emote img {
+    height: 48px;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+.emote.large img {
+    height: 80px;
+}

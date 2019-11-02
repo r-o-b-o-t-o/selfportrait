@@ -21,6 +21,7 @@ pub fn start(config: &WwwConfig, emote_mngr: Arc<EmoteManager>) -> Result<()> {
                 emote_mngr: emote_mngr.clone(),
             })
             .wrap(middleware::Logger::default())
+            .service(actix_files::Files::new("/assets", "assets"))
             .service(index::handler)
             .service(library::handler)
             .service(palette::handler)

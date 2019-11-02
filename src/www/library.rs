@@ -27,7 +27,7 @@ struct List {
 #[derive(Serialize)]
 struct Emote {
     pub name: String,
-    pub path: String,
+    pub url: String,
 }
 
 impl Emote {
@@ -41,7 +41,7 @@ impl Emote {
 
         Self {
             name: name.to_string(),
-            path: url.to_string(),
+            url: url.to_string(),
         }
     }
 }

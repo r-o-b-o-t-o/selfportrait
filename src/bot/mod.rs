@@ -21,9 +21,11 @@ use serenity::{
 };
 use unicode_segmentation::UnicodeSegmentation;
 
+type CommandFn = fn(&Bot, &Context, Option<&mut Message>, Option<&MessageUpdateEvent>) -> Result<()>;
+
 pub struct Bot {
     pub user: User,
-    commands: HashMap<String, fn(&Bot, &Context) -> Result<()>>,
+    commands: HashMap<String, CommandFn>,
 }
 
 impl Bot {
@@ -178,14 +180,14 @@ impl Bot {
         }
         for (command_name, func) in self.commands.iter() {
             if content.starts_with(&format!("{}{}", prefix, command_name)) {
-                func(self, ctx)?;
+                func(self, ctx, msg, event)?;
                 return Ok(true);
             }
         }
         Ok(false)
     }
 
-    fn edit_message<F>(&self, ctx: &Context, msg: &mut Option<&mut Message>, event: Option<&MessageUpdateEvent>, f: F) -> serenity::Result<()>
+    pub fn edit_message<F>(&self, ctx: &Context, msg: &mut Option<&mut Message>, event: Option<&MessageUpdateEvent>, f: F) -> serenity::Result<()>
     where F: FnOnce(&mut EditMessage) -> &mut EditMessage {
 
         if let Some(msg) = msg {
@@ -196,7 +198,7 @@ impl Bot {
         Ok(())
     }
 
-    fn delete_message(&self, ctx: &Context, msg: &Option<Message>, event: Option<&MessageUpdateEvent>) -> serenity::Result<()> {
+    pub fn delete_message(&self, ctx: &Context, msg: &Option<Message>, event: Option<&MessageUpdateEvent>) -> serenity::Result<()> {
         if let Some(msg) = msg {
             return msg.channel_id.delete_message(&ctx, msg);
         } else if let Some(event) = event {
@@ -205,7 +207,7 @@ impl Bot {
         Ok(())
     }
 
-    fn message_content(&self, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> String {
+    pub fn message_content(&self, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> String {
         if let Some(msg) = msg {
             return msg.content.clone();
         } else if let Some(event) = event {
@@ -216,7 +218,7 @@ impl Bot {
         "".into()
     }
 
-    fn send_files<'a, It, T, F>(&self, ctx: &Context, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>, files: It, f: F) -> serenity::Result<Option<Message>>
+    pub fn send_files<'a, It, T, F>(&self, ctx: &Context, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>, files: It, f: F) -> serenity::Result<Option<Message>>
     where T: Into<AttachmentType<'a>>,
             It: IntoIterator<Item = T>,
             for <'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a> {
@@ -229,7 +231,7 @@ impl Bot {
         Ok(None)
     }
 
-    fn send_message<'a, F>(&self, ctx: &Context, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>, f: F) -> serenity::Result<Option<Message>>
+    pub fn send_message<'a, F>(&self, ctx: &Context, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>, f: F) -> serenity::Result<Option<Message>>
     where for <'b> F: FnOnce(&'b mut CreateMessage<'a>) -> &'b mut CreateMessage<'a> {
 
         if let Some(msg) = msg {
