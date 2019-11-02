@@ -1,4 +1,7 @@
-use std::{ error, fmt };
+use std::{
+    error, fmt,
+    convert::From,
+};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -15,6 +18,8 @@ pub enum ErrorKind {
     ManagerRead,
     ManagerWrite,
     LoadEmotes,
+    ParseWwwBaseUrl,
+    IO,
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +60,7 @@ impl Error {
 
     fn type_to_str(kind: &ErrorKind) -> String {
         match kind {
-            ErrorKind::Other | ErrorKind::Serenity => "",
+            ErrorKind::Other | ErrorKind::Serenity | ErrorKind::IO => "",
             ErrorKind::ConfigurationFileRead => "could not read the configuration file config.toml",
             ErrorKind::ConfigurationParse => "could not parse the configuration",
             ErrorKind::CtrlCHandler => "could not set the Ctrl-C handler",
@@ -65,6 +70,7 @@ impl Error {
             ErrorKind::ManagerRead => "could not get shared manager read lock",
             ErrorKind::ManagerWrite => "could not get shared manager write lock",
             ErrorKind::LoadEmotes => "could not load emotes from disk",
+            ErrorKind::ParseWwwBaseUrl => "could not parse www config base url",
         }.into()
     }
 }
@@ -83,8 +89,20 @@ impl error::Error for Error {
     }
 }
 
-impl std::convert::From<serenity::Error> for Error {
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Self::from(ErrorKind::IO, err)
+    }
+}
+
+impl From<serenity::Error> for Error {
     fn from(err: serenity::Error) -> Self {
         Self::from(ErrorKind::Serenity, err)
+    }
+}
+
+impl From<ctrlc::Error> for Error {
+    fn from(err: ctrlc::Error) -> Self {
+        Self::from(ErrorKind::CtrlCHandler, err)
     }
 }

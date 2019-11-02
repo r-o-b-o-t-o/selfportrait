@@ -3,7 +3,7 @@ use std::{
     path::{ Path, PathBuf },
 };
 
-use crate::error::{ Error, ErrorKind, Result };
+use crate::{ Error, ErrorKind, Result };
 
 use typemap::Key;
 
@@ -78,6 +78,10 @@ impl EmoteManager {
 
     pub fn n_emotes(&self) -> usize {
         self.emotes.len()
+    }
+
+    pub fn emotes(&self) -> &Vec<Emote> {
+        &self.emotes
     }
 
     pub fn text_emotes(&self) -> &Vec<(Vec<&'static str>, &'static str)> {

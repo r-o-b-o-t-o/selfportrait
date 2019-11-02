@@ -1,4 +1,8 @@
+#[macro_use]
+extern crate actix_web;
+
 pub mod bot;
+pub mod www;
 pub mod error;
 pub mod config;
 pub mod commands;
@@ -6,16 +10,16 @@ pub mod emote_manager;
 
 use std::{
     thread,
+    path::PathBuf,
     sync::{
-        Arc, Mutex,
+        Arc,
         atomic::{ AtomicBool, Ordering },
     },
-    path::PathBuf,
 };
 
-use emote_manager::EmoteManager;
 use config::{ Config, LoggingConfig };
-use error::{ Error, ErrorKind, Result };
+pub use emote_manager::EmoteManager;
+pub use error::{ Error, ErrorKind, Result };
 
 fn load_emotes() -> Result<EmoteManager> {
     log::info!("Loading emotes...");
@@ -25,10 +29,11 @@ fn load_emotes() -> Result<EmoteManager> {
     Ok(mngr)
 }
 
-fn setup_ctrl_c(running: Arc<AtomicBool>) -> Result<()> {
+fn setup_ctrl_c(run: Arc<AtomicBool>) -> Result<()> {
     ctrlc::set_handler(move || {
-        running.store(false, Ordering::SeqCst);
-    }).map_err(|err| Error::from(ErrorKind::CtrlCHandler, err))
+        run.store(false, Ordering::SeqCst);
+    })?;
+    Ok(())
 }
 
 fn setup_logging(config: &LoggingConfig) -> Result<()> {
@@ -48,35 +53,46 @@ fn setup_logging(config: &LoggingConfig) -> Result<()> {
         .apply().map_err(|err| Error::from(ErrorKind::Logging, err))
 }
 
+fn wait_loop(run: Arc<AtomicBool>) {
+    let sleep_duration = std::time::Duration::from_millis(100);
+
+    while run.load(Ordering::SeqCst) {
+        std::thread::sleep(sleep_duration);
+    }
+}
+
 fn main() -> Result<()> {
     let config = Config::load()?;
     setup_logging(&config.logging)?;
-    let running = Arc::new(AtomicBool::new(true));
-    setup_ctrl_c(running.clone())?;
 
-    let config_shared = Arc::new(Mutex::new(config.clone()));
+    let users = config.users.clone();
+    let config = Arc::new(config);
     let emote_mngr = Arc::new(load_emotes()?);
 
     log::info!("Starting bots...");
-    for user in config.users {
+    for user in users {
         if !user.active {
             continue;
         }
-        let config_shared = config_shared.clone();
+        let config = config.clone();
         let emote_mngr = emote_mngr.clone();
         thread::spawn(move || {
             let user_id = user.discord_id;
-            if let Err(err) = bot::Bot::start(user, config_shared, emote_mngr) {
+            if let Err(err) = bot::Bot::start(user, config, emote_mngr) {
                 log::error!("Error while starting bot for user {}: {}", user_id, err);
             }
         });
     }
 
-    let loop_sleep = std::time::Duration::from_millis(100);
-    while running.load(Ordering::SeqCst) {
-        std::thread::sleep(loop_sleep);
+    if config.www.enabled {
+        log::info!("Starting web server...");
+        www::start(&config.www, emote_mngr)?;
+    } else {
+        let run = Arc::new(AtomicBool::new(true));
+        setup_ctrl_c(run.clone())?;
+        wait_loop(run.clone());
     }
-    log::info!("Shutting down.");
 
+    log::info!("Shutting down.");
     Ok(())
 }

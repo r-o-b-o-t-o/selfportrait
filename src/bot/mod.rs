@@ -2,8 +2,8 @@ pub mod user;
 pub use user::User;
 
 use std::{
+    sync::Arc,
     collections::HashMap,
-    sync::{ Arc, Mutex },
 };
 
 use crate::{
@@ -240,7 +240,7 @@ impl Bot {
         Ok(None)
     }
 
-    pub fn start(user: User, config: Arc<Mutex<Config>>, emotes_mngr: Arc<EmoteManager>) -> Result<()> {
+    pub fn start(user: User, config: Arc<Config>, emotes_mngr: Arc<EmoteManager>) -> Result<()> {
         let bot = Bot::new(user.clone());
         let mut client = Client::new(&user.token, bot)?;
         client.with_framework(StandardFramework::new()
