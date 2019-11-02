@@ -19,6 +19,7 @@ use serenity::{
     builder::{ EditMessage, CreateMessage },
     model::{ channel::Message, gateway::Ready, event::MessageUpdateEvent },
 };
+use unicode_segmentation::UnicodeSegmentation;
 
 pub struct Bot {
     pub user: User,
@@ -89,30 +90,60 @@ impl Bot {
         let prefix = &self.user.emote_prefix;
         let content = self.message_content(&msg, event);
 
-        if !content.contains(prefix) {
+        if !content.contains(prefix) || prefix.is_empty() {
             return Ok(false);
         }
 
-        let mut content_text = String::new();
-        let mut delete_message = false;
         let data = ctx.data.read();
         let mngr = data.get::<EmoteManager>().ok_or(Error::new(ErrorKind::DataGet))?;
 
-        for word in content.split_whitespace() {
-            if word.starts_with(prefix) {
-                let emote_name = word.trim_start_matches(prefix);
-                if let Some(emote) = mngr.find_emote_by_name(emote_name) {
-                    self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(&content_text))?;
-                    content_text = "".into();
-                    delete_message = true;
+        let content = UnicodeSegmentation::graphemes(&content[..], true).collect::<Vec<&str>>();
+        let content_length = content.len();
+        let prefix = UnicodeSegmentation::graphemes(&prefix[..], true).collect::<Vec<&str>>();
+
+        let mut prefix_pos = 0;
+        let mut prefix_found = false;
+        let mut delete_message = false;
+
+        let mut emote_name = String::new();
+        let mut result = String::new();
+
+        for (g_idx, &g) in content.iter().enumerate() {
+            if prefix_found {
+                let is_whitespace = g.trim().is_empty();
+                let last_msg_char = g_idx + 1 == content_length;
+
+                if !is_whitespace {
+                    emote_name.push_str(g);
+                }
+
+                if last_msg_char || is_whitespace {
+                    prefix_found = false;
+                    prefix_pos = 0;
+
+                    if let Some(emote) = mngr.find_emote_by_name(&emote_name) {
+                        self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(&result))?;
+                        emote_name.clear();
+                        result.clear();
+                        delete_message = true;
+                    }
+                    if is_whitespace {
+                        result.push_str(g);
+                    }
                 }
             } else {
-                content_text.push_str(word);
-                content_text.push_str(" ");
+                if g == prefix[prefix_pos] {
+                    prefix_pos += 1;
+                    if prefix_pos == prefix.len() {
+                        prefix_found = true;
+                    }
+                } else {
+                    result.push_str(g);
+                }
             }
         }
-        if !content_text.is_empty() {
-            self.send_message(ctx, &msg, event, |m| m.content(&content_text))?;
+        if !result.is_empty() {
+            self.send_message(ctx, &msg, event, |m| m.content(&result))?;
         }
 
         Ok(delete_message)
@@ -120,7 +151,7 @@ impl Bot {
 
     fn handle_text_emotes(&self, ctx: &Context, mut msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<()> {
         let prefix = &self.user.text_emote_prefix;
-        if !self.message_content(&msg, event).contains(prefix) {
+        if !self.message_content(&msg, event).contains(prefix) || prefix.is_empty() {
             return Ok(());
         }
 
@@ -142,7 +173,7 @@ impl Bot {
         let prefix = &self.user.command_prefix;
         let content = self.message_content(&msg, event);
 
-        if !content.starts_with(prefix) {
+        if !content.starts_with(prefix) || prefix.is_empty() {
             return Ok(false);
         }
         for (command_name, func) in self.commands.iter() {

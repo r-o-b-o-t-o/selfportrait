@@ -975,6 +975,7 @@ dependencies = [
  "serenity 0.7.2 (git+https://github.com/r-o-b-o-t-o/serenity?branch=current)",
  "toml 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "typemap 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicode-segmentation 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
