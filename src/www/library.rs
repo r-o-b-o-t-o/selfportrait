@@ -7,7 +7,7 @@ use std::{
 use super::Data;
 
 use serde::Serialize;
-use actix_web::{ web, HttpRequest, HttpResponse };
+use actix_web::{ web, http, HttpRequest, HttpResponse };
 
 #[derive(Serialize, Default)]
 struct Library(pub Vec<List>);
@@ -80,5 +80,7 @@ pub fn handler(_req: HttpRequest, data: web::Data<Data>) -> HttpResponse {
         };
     }
 
-    HttpResponse::Ok().json(library)
+    HttpResponse::Ok()
+        .set_header(http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .json(library)
 }
