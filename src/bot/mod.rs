@@ -144,7 +144,7 @@ impl Bot {
                 }
             }
         }
-        if !result.is_empty() {
+        if !result.is_empty() && delete_message {
             self.send_message(ctx, &msg, event, |m| m.content(&result))?;
         }
 
