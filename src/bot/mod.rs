@@ -89,10 +89,10 @@ impl Bot {
     }
 
     fn handle_emotes(&self, ctx: &Context, msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<bool> {
-        let prefix = &self.user.emote_prefix;
+        let prefix_str = &self.user.emote_prefix;
         let content = self.message_content(&msg, event);
 
-        if !content.contains(prefix) || prefix.is_empty() {
+        if !content.contains(prefix_str) || prefix_str.is_empty() {
             return Ok(false);
         }
 
@@ -101,7 +101,7 @@ impl Bot {
 
         let content = UnicodeSegmentation::graphemes(&content[..], true).collect::<Vec<&str>>();
         let content_length = content.len();
-        let prefix = UnicodeSegmentation::graphemes(&prefix[..], true).collect::<Vec<&str>>();
+        let prefix = UnicodeSegmentation::graphemes(&prefix_str[..], true).collect::<Vec<&str>>();
 
         let mut prefix_pos = 0;
         let mut prefix_found = false;
@@ -128,6 +128,8 @@ impl Bot {
                         emote_name.clear();
                         result.clear();
                         delete_message = true;
+                    } else {
+                        result.push_str(prefix_str);
                     }
                     if is_whitespace {
                         result.push_str(g);
