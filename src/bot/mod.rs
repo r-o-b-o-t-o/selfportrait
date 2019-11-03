@@ -65,7 +65,8 @@ impl EventHandler for Bot {
         }
     }
 
-    fn ready(&self, _ctx: Context, ready: Ready) {
+    fn ready(&self, ctx: Context, ready: Ready) {
+        ctx.invisible();
         log::info!("{} is connected!", ready.user.name);
     }
 }
