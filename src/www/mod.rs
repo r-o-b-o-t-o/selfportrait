@@ -26,6 +26,7 @@ pub fn start(config: &WwwConfig, emote_mngr: Arc<EmoteManager>) -> Result<()> {
             .service(library::handler)
             .service(palette::handler)
     })
+    .disable_signals()
     .workers(config.workers)
     .bind(format!("{}:{}", config.bind_host, config.bind_port))?
     .run()?;

@@ -17,7 +17,7 @@ use std::{
     },
 };
 
-use config::{ Config, LoggingConfig };
+use config::Config;
 pub use emote_manager::EmoteManager;
 pub use error::{ Error, ErrorKind, Result };
 
@@ -36,7 +36,7 @@ fn setup_ctrl_c(run: Arc<AtomicBool>) -> Result<()> {
     Ok(())
 }
 
-fn setup_logging(config: &LoggingConfig) -> Result<()> {
+fn setup_logging(config: &config::LoggingConfig) -> Result<()> {
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -51,6 +51,16 @@ fn setup_logging(config: &LoggingConfig) -> Result<()> {
         .chain(std::io::stdout())
         .chain(fern::log_file(&config.file).map_err(|err| Error::from(ErrorKind::LogFile, err))?)
         .apply().map_err(|err| Error::from(ErrorKind::Logging, err))
+}
+
+fn start_www(config: Arc<Config>, emote_mngr: Arc<EmoteManager>) {
+    thread::spawn(move || {
+        log::info!("Starting web server...");
+        let res = www::start(&config.www, emote_mngr);
+        if let Err(err) = res {
+            log::error!("Web server error: {}", err);
+        }
+    });
 }
 
 fn wait_loop(run: Arc<AtomicBool>) {
@@ -85,13 +95,12 @@ fn main() -> Result<()> {
     }
 
     if config.www.enabled {
-        log::info!("Starting web server...");
-        www::start(&config.www, emote_mngr)?;
-    } else {
-        let run = Arc::new(AtomicBool::new(true));
-        setup_ctrl_c(run.clone())?;
-        wait_loop(run.clone());
+        start_www(config.clone(), emote_mngr.clone());
     }
+
+    let run = Arc::new(AtomicBool::new(true));
+    setup_ctrl_c(run.clone())?;
+    wait_loop(run.clone());
 
     log::info!("Shutting down.");
     Ok(())

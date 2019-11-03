@@ -162,14 +162,17 @@ impl Bot {
 
         let data = ctx.data.read();
         let mngr = data.get::<EmoteManager>().ok_or(Error::new(ErrorKind::DataGet))?;
-        let mut content = self.message_content(&msg, event);
+        let content = self.message_content(&msg, event);
+        let mut edited = content.clone();
 
         for (triggers, emote) in mngr.text_emotes() {
             for trigger in triggers {
-                content = content.replace(&format!("{}{}", prefix, trigger), emote);
+                edited = edited.replace(&format!("{}{}", prefix, trigger), emote);
             }
         }
-        self.edit_message(ctx, &mut msg, event, |m| m.content(content))?;
+        if edited != content {
+            self.edit_message(ctx, &mut msg, event, |m| m.content(edited))?;
+        }
 
         Ok(())
     }
@@ -245,7 +248,7 @@ impl Bot {
         Ok(None)
     }
 
-    pub fn start(user: User, config: Arc<Config>, emotes_mngr: Arc<EmoteManager>) -> Result<()> {
+    pub fn start(user: User, config: Arc<Config>, emotes_mngr: Arc<EmoteManager>) -> Result<Client> {
         let bot = Bot::new(user.clone());
         let mut client = Client::new(&user.token, bot)?;
         client.with_framework(StandardFramework::new()
@@ -262,6 +265,6 @@ impl Bot {
         }
 
         client.start()?;
-        Ok(())
+        Ok(client)
     }
 }
