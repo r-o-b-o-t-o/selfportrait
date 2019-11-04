@@ -89,7 +89,7 @@ impl Bot {
         Ok(())
     }
 
-    fn handle_emotes(&self, ctx: &Context, msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<bool> {
+    fn handle_emotes(&self, ctx: &Context, mut msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<bool> {
         let prefix_str = &self.user.emote_prefix;
         let content = self.message_content(&msg, event);
 
@@ -149,6 +149,10 @@ impl Bot {
         }
         if !result.is_empty() && delete_message {
             self.send_message(ctx, &msg, event, |m| m.content(&result))?;
+        }
+        if delete_message && self.message_has_attachments(&msg, event) {
+            self.edit_message(ctx, &mut msg, event, |m| m.content(""))?;
+            delete_message = false;
         }
 
         Ok(delete_message)
@@ -246,6 +250,19 @@ impl Bot {
             return Ok(Some(event.channel_id.send_message(ctx, f)?));
         }
         Ok(None)
+    }
+
+    pub fn message_has_attachments(&self, msg: &Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> bool {
+        if let Some(msg) = msg {
+            !msg.attachments.is_empty()
+        } else if let Some(event) = event {
+            match &event.attachments {
+                Some(attachments) => !attachments.is_empty(),
+                None => false,
+            }
+        } else {
+            false
+        }
     }
 
     pub fn start(user: User, config: Arc<Config>, emotes_mngr: Arc<EmoteManager>) -> Result<Client> {
