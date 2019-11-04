@@ -113,6 +113,7 @@ impl Bot {
 
         for (g_idx, &g) in content.iter().enumerate() {
             if prefix_found {
+                // After having found the prefix, we look for an emote name that matches an emote in the EmoteManager
                 let is_whitespace = g.trim().is_empty();
                 let last_msg_char = g_idx + 1 == content_length;
 
@@ -121,36 +122,53 @@ impl Bot {
                 }
 
                 if last_msg_char || is_whitespace {
-                    prefix_found = false;
-                    prefix_pos = 0;
+                    // Send the emote out if the emote is at the end of the message (last_msg_char)
+                    // or if we encountered a whitespace (which marks the end of the emote name)
+
+                    prefix_found = false; // We'll start looking for the emote prefix again
+                    prefix_pos = 0;       // in the next loop iteration
 
                     if let Some(emote) = mngr.find_emote_by_name(&emote_name) {
+                        // Send the emote with the part of the message we read before the emote name
                         self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(&result))?;
                         emote_name.clear();
                         result.clear();
                         delete_message = true;
                     } else {
+                        // If the emote doesn't exist it might be just regular text,
+                        // we append it to the message content
                         result.push_str(prefix_str);
                     }
                     if is_whitespace {
                         result.push_str(g);
                     }
                 }
-            } else {
-                if g == prefix[prefix_pos] {
+            } else { // Search for the emote prefix
+                let spacing_check = if prefix_pos == 0 { // If we're at the first character of the prefix search...
+                    g_idx == 0 || content[g_idx - 1].trim().is_empty() // ... we need the emote name to be separated by a whitespace from the previous word
+                } else {
+                    true
+                };
+                if g == prefix[prefix_pos] && spacing_check {
                     prefix_pos += 1;
                     if prefix_pos == prefix.len() {
+                        // We've found the emote prefix in its entirety
                         prefix_found = true;
                     }
                 } else {
+                    // Haven't found parts of the prefix, append the current grapheme to the result content
                     result.push_str(g);
                 }
             }
         }
         if !result.is_empty() && delete_message {
+            // If we're about to delete the message (since we split the content in multiple new messages)
+            // and if there is text after the last emote, send the last bit in a new message
             self.send_message(ctx, &msg, event, |m| m.content(&result))?;
         }
         if delete_message && self.message_has_attachments(&msg, event) {
+            // Prevents deleting a message if it has attachments
+            // We just edit it to an empty string instead
             self.edit_message(ctx, &mut msg, event, |m| m.content(""))?;
             delete_message = false;
         }
