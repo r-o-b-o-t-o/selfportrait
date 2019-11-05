@@ -105,7 +105,7 @@ impl Bot {
         let n_captures = captures.len();
         let mut delete_message = false;
         let mut edit_first = None;
-        if n_captures == 0 {
+        if n_captures == 0 || captures.iter().all(|cap| cap["emote"].trim().is_empty()) {
             return Ok(false);
         }
 
