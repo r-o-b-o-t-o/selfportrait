@@ -19,7 +19,6 @@ use serenity::{
     builder::{ EditMessage, CreateMessage },
     model::{ channel::Message, gateway::Ready, event::MessageUpdateEvent },
 };
-use unicode_segmentation::UnicodeSegmentation;
 
 type CommandFn = fn(&Bot, &Context, Option<&mut Message>, Option<&MessageUpdateEvent>) -> Result<()>;
 
@@ -90,88 +89,80 @@ impl Bot {
     }
 
     fn handle_emotes(&self, ctx: &Context, mut msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<bool> {
-        let prefix_str = &self.user.emote_prefix;
+        let prefix = &self.user.emote_prefix;
         let content = self.message_content(&msg, event);
 
-        if !content.contains(prefix_str) || prefix_str.is_empty() {
+        if !content.contains(prefix) || prefix.is_empty() {
             return Ok(false);
         }
+
+        let re = format!(r"(^|\s+){}(?P<emote>\w*)", prefix);
+        let re = regex::Regex::new(&re).unwrap();
+
+        let splits: Vec<_> = re.split(&content).collect();
+        let captures: Vec<_> = re.captures_iter(&content).collect();
+        let n_splits = splits.len();
+        let n_captures = captures.len();
+        let mut delete_message = false;
+        let mut edit_first = None;
+        if n_captures == 0 {
+            return Ok(false);
+        }
+
+        let send_split = |split: &str| -> Result<()> {
+            let split = split.trim();
+            if !split.is_empty() {
+                self.send_message(ctx, &msg, event, |m| m.content(split))?;
+            }
+            Ok(())
+        };
 
         let data = ctx.data.read();
         let mngr = data.get::<EmoteManager>().ok_or(Error::new(ErrorKind::DataGet))?;
 
-        let content = UnicodeSegmentation::graphemes(&content[..], true).collect::<Vec<&str>>();
-        let content_length = content.len();
-        let prefix = UnicodeSegmentation::graphemes(&prefix_str[..], true).collect::<Vec<&str>>();
-
-        let mut prefix_pos = 0;
-        let mut prefix_found = false;
-        let mut delete_message = false;
-
-        let mut emote_name = String::new();
-        let mut result = String::new();
-
-        for (g_idx, &g) in content.iter().enumerate() {
-            if prefix_found {
-                // After having found the prefix, we look for an emote name that matches an emote in the EmoteManager
-                let is_whitespace = g.trim().is_empty();
-                let last_msg_char = g_idx + 1 == content_length;
-
-                if !is_whitespace {
-                    emote_name.push_str(g);
-                }
-
-                if last_msg_char || is_whitespace {
-                    // Send the emote out if the emote is at the end of the message (last_msg_char)
-                    // or if we encountered a whitespace (which marks the end of the emote name)
-
-                    prefix_found = false; // We'll start looking for the emote prefix again
-                    prefix_pos = 0;       // in the next loop iteration
-
-                    if let Some(emote) = mngr.find_emote_by_name(&emote_name) {
-                        // Send the emote with the part of the message we read before the emote name
-                        self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(&result))?;
-                        emote_name.clear();
-                        result.clear();
+        let mut content = String::new();
+        for (split, capture) in splits.iter().zip(captures.iter()) {
+            let emote_name = &capture["emote"];
+            if let Some(emote) = mngr.find_emote_by_name(&emote_name) {
+                content.push_str(split);
+                match edit_first {
+                    Some(_) => {
+                        self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(content.trim()))?;
                         delete_message = true;
-                    } else {
-                        // If the emote doesn't exist it might be just regular text,
-                        // we append it to the message content
-                        result.push_str(prefix_str);
-                    }
-                    if is_whitespace {
-                        result.push_str(g);
-                    }
-                }
-            } else { // Search for the emote prefix
-                let spacing_check = if prefix_pos == 0 { // If we're at the first character of the prefix search...
-                    g_idx == 0 || content[g_idx - 1].trim().is_empty() // ... we need the emote name to be separated by a whitespace from the previous word
-                } else {
-                    true
+                    },
+                    None => {
+                        self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(""))?;
+                        edit_first = Some(content.trim().to_owned());
+                    },
                 };
-                if g == prefix[prefix_pos] && spacing_check {
-                    prefix_pos += 1;
-                    if prefix_pos == prefix.len() {
-                        // We've found the emote prefix in its entirety
-                        prefix_found = true;
-                    }
-                } else {
-                    // Haven't found parts of the prefix, append the current grapheme to the result content
-                    result.push_str(g);
-                }
+                content.clear();
+            } else {
+                content.push_str(split);
+                content.push_str(&format!(" {}{}", prefix, emote_name));
             }
         }
-        if !result.is_empty() && delete_message {
-            // If we're about to delete the message (since we split the content in multiple new messages)
-            // and if there is text after the last emote, send the last bit in a new message
-            self.send_message(ctx, &msg, event, |m| m.content(&result))?;
+        if n_splits > n_captures {
+            // If there is some text after the last emote, send the last bit
+            send_split(splits[n_splits - 1])?;
         }
-        if delete_message && self.message_has_attachments(&msg, event) {
-            // Prevents deleting a message if it has attachments
-            // We just edit it to an empty string instead
-            self.edit_message(ctx, &mut msg, event, |m| m.content(""))?;
-            delete_message = false;
+        content = content.trim().into();
+        if !content.is_empty() && (delete_message || edit_first.is_some()) {
+            send_split(&content)?;
         }
+        match edit_first {
+            Some(content) => {
+                self.edit_message(ctx, &mut msg, event, |m| m.content(content))?;
+                delete_message = false;
+            },
+            None => {
+                if delete_message && self.message_has_attachments(&msg, event) {
+                    // Prevents deleting a message if it has attachments
+                    // We just edit it to an empty string instead
+                    self.edit_message(ctx, &mut msg, event, |m| m.content(""))?;
+                    delete_message = false;
+                }
+            },
+        };
 
         Ok(delete_message)
     }
