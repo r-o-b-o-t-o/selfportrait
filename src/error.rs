@@ -31,7 +31,7 @@ pub struct Error {
 impl Error {
     pub fn new(kind: ErrorKind) -> Self {
         Self {
-            message: Self::type_to_str(&kind).into(),
+            message: Self::type_to_str(&kind),
             kind,
         }
     }

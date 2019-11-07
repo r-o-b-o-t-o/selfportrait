@@ -52,12 +52,12 @@ impl EmoteManager {
             if path.is_file() {
                 let bytes = std::fs::read(&path)?;
                 let file_name = path.file_name()
-                                    .ok_or(std::io::Error::new(std::io::ErrorKind::Other, "no file name"))?
+                                    .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no file name"))?
                                     .to_string_lossy()
                                     .into();
                 let name = path.with_extension("")
                                 .file_name()
-                                .ok_or(std::io::Error::new(std::io::ErrorKind::Other, "no file name"))?
+                                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no file name"))?
                                 .to_string_lossy()
                                 .into();
 

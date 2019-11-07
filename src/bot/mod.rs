@@ -118,7 +118,7 @@ impl Bot {
         };
 
         let data = ctx.data.read();
-        let mngr = data.get::<EmoteManager>().ok_or(Error::new(ErrorKind::DataGet))?;
+        let mngr = data.get::<EmoteManager>().ok_or_else(|| Error::new(ErrorKind::DataGet))?;
 
         let mut content = String::new();
         for (split, capture) in splits.iter().zip(captures.iter()) {
@@ -174,7 +174,7 @@ impl Bot {
         }
 
         let data = ctx.data.read();
-        let mngr = data.get::<EmoteManager>().ok_or(Error::new(ErrorKind::DataGet))?;
+        let mngr = data.get::<EmoteManager>().ok_or_else(|| Error::new(ErrorKind::DataGet))?;
         let content = self.message_content(&msg, event);
         let mut edited = content.clone();
 
