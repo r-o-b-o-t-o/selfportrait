@@ -8,8 +8,8 @@ use std::{
 
 use crate::{
     config::Config,
-    emote_manager::EmoteManager,
     error::{ Error, ErrorKind, Result },
+    emote_manager::{ Emote, EmoteManager },
 };
 
 use serenity::{
@@ -103,68 +103,68 @@ impl Bot {
         let captures: Vec<_> = re.captures_iter(&content).collect();
         let n_splits = splits.len();
         let n_captures = captures.len();
-        let mut delete_message = false;
-        let mut edit_first = None;
+
         if n_captures == 0 || captures.iter().all(|cap| cap["emote"].trim().is_empty()) {
             return Ok(false);
         }
 
-        let send_split = |split: &str| -> Result<()> {
-            let split = split.trim();
-            if !split.is_empty() {
-                self.send_message(ctx, &msg, event, |m| m.content(split))?;
-            }
-            Ok(())
-        };
-
         let data = ctx.data.read();
         let mngr = data.get::<EmoteManager>().ok_or_else(|| Error::new(ErrorKind::DataGet))?;
 
+        struct EmoteMessage<'a> {
+            pub content: String,
+            pub capture: String,
+            pub whitespace: String,
+            pub emote: Option<&'a Emote>,
+        }
+
+        let mut messages = splits
+                            .iter().zip(captures.iter())
+                            .map(|(split, capture)| EmoteMessage {
+                                content: split.to_string(),
+                                capture: capture[0].to_owned(),
+                                whitespace: capture[1].to_owned(),
+                                emote: mngr.find_emote_by_name(&capture[2]),
+                            })
+                            .collect::<Vec<_>>();
+        if n_splits > n_captures {
+            // If there is text after the last emote, add the last bit of text that was not taken by the .iter().zip()
+            messages.push(EmoteMessage {
+                content: splits[n_splits - 1].to_string(),
+                capture: String::new(),
+                whitespace: String::new(),
+                emote: None,
+            });
+        }
+
         let mut content = String::new();
-        for (split, capture) in splits.iter().zip(captures.iter()) {
-            let emote_name = &capture["emote"];
-            if let Some(emote) = mngr.find_emote_by_name(&emote_name) {
-                content.push_str(split);
-                match edit_first {
-                    Some(_) => {
-                        self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(content.trim()))?;
-                        delete_message = true;
-                    },
-                    None => {
-                        self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(""))?;
-                        edit_first = Some(content.trim().to_owned());
-                    },
-                };
+        let mut first = true;
+        let mut delete = true;
+        for emote_msg in messages.iter() {
+            content.push_str(&emote_msg.content);
+
+            if let Some(emote) = emote_msg.emote {
+                content.push_str(&emote_msg.whitespace);
+
+                if first {
+                    self.edit_message(ctx, &mut msg, event, |m| m.content(&content))?;
+                    if !content.trim().is_empty() {
+                        delete = false;
+                    }
+                    first = false;
+                    content.clear();
+                }
+                self.send_files(ctx, &msg, event, vec![emote.as_attachment()], |m| m.content(&content))?;
                 content.clear();
             } else {
-                content.push_str(split);
-                content.push_str(&format!(" {}{}", prefix, emote_name));
+                content.push_str(&emote_msg.capture);
             }
         }
-        if n_splits > n_captures {
-            // If there is some text after the last emote, send the last bit
-            send_split(splits[n_splits - 1])?;
+        if !content.trim().is_empty() {
+            self.send_message(ctx, &msg, event, |m| m.content(&content))?;
         }
-        content = content.trim().into();
-        if !content.is_empty() && (delete_message || edit_first.is_some()) {
-            send_split(&content)?;
-        }
-        match edit_first {
-            Some(content) => {
-                self.edit_message(ctx, &mut msg, event, |m| m.content(content))?;
-                delete_message = false;
-            },
-            None => {
-                if delete_message && self.message_has_attachments(&msg, event) {
-                    // Prevents deleting a message if it has attachments
-                    // We just edit it to an empty string instead
-                    self.edit_message(ctx, &mut msg, event, |m| m.content(""))?;
-                    delete_message = false;
-                }
-            },
-        };
 
-        Ok(delete_message)
+        Ok(delete && !self.message_has_attachments(&msg, event))
     }
 
     fn handle_text_emotes(&self, ctx: &Context, mut msg: Option<&mut Message>, event: Option<&MessageUpdateEvent>) -> Result<()> {

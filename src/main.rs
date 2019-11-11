@@ -75,15 +75,16 @@ fn main() -> Result<()> {
     let config = Config::load()?;
     setup_logging(&config.logging)?;
 
-    let users = config.users.clone();
+    let users = config.users
+                        .clone()
+                        .into_iter()
+                        .filter(|user| user.active)
+                        .collect::<Vec<_>>();
     let config = Arc::new(config);
     let emote_mngr = Arc::new(load_emotes()?);
 
-    log::info!("Starting bots...");
+    log::info!("Starting {} bot{}...", users.len(), if users.len() > 1 { "s" } else { "" });
     for user in users {
-        if !user.active {
-            continue;
-        }
         let config = config.clone();
         let emote_mngr = emote_mngr.clone();
         thread::spawn(move || {
