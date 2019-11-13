@@ -3,6 +3,7 @@ extern crate actix_web;
 
 pub mod bot;
 pub mod www;
+pub mod tools;
 pub mod error;
 pub mod config;
 pub mod commands;
@@ -74,6 +75,13 @@ fn wait_loop(run: Arc<AtomicBool>) {
 fn main() -> Result<()> {
     let config = Config::load()?;
     setup_logging(&config.logging)?;
+
+    for arg in std::env::args() {
+        if arg == "--fetch-twitch-emotes" {
+            tools::fetch_twitch_emotes::run()?;
+            return Ok(());
+        }
+    }
 
     let users = config.users
                         .clone()

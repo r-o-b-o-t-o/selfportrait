@@ -20,6 +20,8 @@ pub enum ErrorKind {
     LoadEmotes,
     ParseWwwBaseUrl,
     IO,
+    Serde,
+    Reqwest,
 }
 
 #[derive(Debug, Clone)]
@@ -71,6 +73,8 @@ impl Error {
             ErrorKind::ManagerWrite => "could not get shared manager write lock",
             ErrorKind::LoadEmotes => "could not load emotes from disk",
             ErrorKind::ParseWwwBaseUrl => "could not parse www config base url",
+            ErrorKind::Serde => "could not serialize/deserialize JSON",
+            ErrorKind::Reqwest => "reqwest error",
         }.into()
     }
 }
@@ -104,5 +108,17 @@ impl From<serenity::Error> for Error {
 impl From<ctrlc::Error> for Error {
     fn from(err: ctrlc::Error) -> Self {
         Self::from(ErrorKind::CtrlCHandler, err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Self::from(ErrorKind::Serde, err)
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Self::from(ErrorKind::Reqwest, err)
     }
 }
