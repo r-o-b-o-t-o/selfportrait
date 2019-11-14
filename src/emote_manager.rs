@@ -76,6 +76,27 @@ impl EmoteManager {
         self.emotes.iter().find(|emote| emote.name == name)
     }
 
+    pub fn find_twitch_emote(&self, name: &str) -> Result<Option<Emote>> {
+        let mut path = PathBuf::new();
+        path.push("assets");
+        path.push("twitchemotes");
+
+        if path.exists() {
+            let file_name = format!("{}.png", name.to_lowercase());
+            path.push(&file_name);
+            let bytes = std::fs::read(&path)?;
+
+            Ok(Some(Emote {
+                path,
+                file_name,
+                name: name.to_owned(),
+                bytes,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn n_emotes(&self) -> usize {
         self.emotes.len()
     }

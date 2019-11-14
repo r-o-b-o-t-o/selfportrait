@@ -102,14 +102,16 @@ impl Bot {
 
     fn handle_emotes(&self, ctx: &Context, settings: &UserSettings, msg: &mut Option<&mut Message>, event: &Option<&MessageUpdateEvent>) -> Result<bool> {
         let prefix = &self.user.emote_prefix;
+        let twitch_prefix = &self.user.twitch_emote_prefix;
         let content = self.message_content(&msg, event);
         let spoiler_mode = settings.spoiler_mode(self.channel_id(msg, event));
 
-        if !content.contains(prefix) || prefix.is_empty() {
+        if !content.contains(prefix) && !content.contains(twitch_prefix) &&
+            !prefix.is_empty() && !twitch_prefix.is_empty() {
             return Ok(false);
         }
 
-        let re = format!(r"(^|\s+){}(?P<emote>\w*)", prefix);
+        let re = format!(r"(^|\s+)(?P<prefix>{}|{})(?P<emote>\w*)", prefix, twitch_prefix);
         let re = regex::Regex::new(&re).unwrap();
 
         let splits: Vec<_> = re.split(&content).collect();
@@ -131,13 +133,29 @@ impl Bot {
             pub emote: Option<&'a Emote>,
         }
 
+        let twitch_emotes = splits
+                                .iter().zip(captures.iter())
+                                .map(|(_split, capture)| if &capture["prefix"] == twitch_prefix {
+                                    mngr.find_twitch_emote(&capture["emote"]).unwrap_or_else(|_err| None)
+                                } else {
+                                    None
+                                })
+                                .collect::<Vec<_>>();
         let mut messages = splits
-                            .iter().zip(captures.iter())
-                            .map(|(split, capture)| EmoteMessage {
+                            .iter()
+                            .zip(captures.iter())
+                            .zip(twitch_emotes.iter())
+                            .map(|((split, capture), twitch_emote)| EmoteMessage {
                                 content: split.to_string(),
                                 capture: capture[0].to_owned(),
                                 whitespace: capture[1].to_owned(),
-                                emote: mngr.find_emote_by_name(&capture[2]),
+                                emote: if &capture["prefix"] == prefix {
+                                    mngr.find_emote_by_name(&capture["emote"])
+                                } else if &capture["prefix"] == twitch_prefix {
+                                    twitch_emote.as_ref()
+                                } else {
+                                    None
+                                },
                             })
                             .collect::<Vec<_>>();
         if messages.iter().all(|msg| msg.emote.is_none()) {

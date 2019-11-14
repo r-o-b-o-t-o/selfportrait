@@ -7,6 +7,7 @@ pub struct User {
     pub token: String,
     pub command_prefix: String,
     pub emote_prefix: String,
+    pub twitch_emote_prefix: String,
     pub text_emote_prefix: String,
 }
 
