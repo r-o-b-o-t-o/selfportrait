@@ -7,7 +7,10 @@ use std::{
     time::{ Instant, Duration },
 };
 
-use crate::Result;
+use crate::{
+    Result,
+    config::ToolsConfig,
+};
 
 use reqwest::Client;
 use indicatif::{ ProgressBar, ProgressStyle };
@@ -46,8 +49,10 @@ struct TwitchErrorResponse {
     pub message: String,
 }
 
-fn get_list_from_api(client: &Client) -> Result<String> {
-    let mut res = client.get("https://api.twitch.tv/kraken/chat/emoticons")
+fn get_list_from_api(client: &Client, client_id: &str) -> Result<String> {
+    let url = format!("https://api.twitch.tv/kraken/chat/emoticons?client_id={}", client_id);
+    let mut res = client.get(&url)
+                        .header("Accept", "application/vnd.twitchtv.v5+json")
                         .send()?;
 
     let text = res.text()?;
@@ -76,11 +81,17 @@ fn save_emote(client: &Client, path: &str, url: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn run() -> Result<()> {
+pub fn run(config: &ToolsConfig) -> Result<()> {
     let client = Client::new();
 
     log::info!("Loading URLs...");
-    let text = get_list_from_api(&client)?;
+    let text = match &config.twitch_app_client_id {
+        Some(id) => get_list_from_api(&client, id)?,
+        None => {
+            log::error!("No twitch_app_client_id value found in the [tools] section of your config.toml file.");
+            return Ok(());
+        },
+    };
     let twitch_emotes: TwitchResponse = serde_json::from_str(&text)?;
     let n_emotes = twitch_emotes.emoticons.len();
     log::info!("{} twitch emotes available.", n_emotes);

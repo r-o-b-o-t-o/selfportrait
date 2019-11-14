@@ -78,7 +78,10 @@ fn main() -> Result<()> {
 
     for arg in std::env::args() {
         if arg == "--fetch-twitch-emotes" {
-            tools::fetch_twitch_emotes::run()?;
+            match &config.tools {
+                Some(config) => tools::fetch_twitch_emotes::run(config)?,
+                None => log::error!("No tools config found. Please specify a [tools] section in your config.toml file with your twitch_app_client_id."),
+            };
             return Ok(());
         }
     }

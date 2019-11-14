@@ -15,6 +15,7 @@ pub struct Config {
     pub logging: LoggingConfig,
     pub www: WwwConfig,
     pub users: Vec<User>,
+    pub tools: Option<ToolsConfig>,
 }
 
 impl Config {
@@ -53,6 +54,11 @@ impl WwwConfig {
         self.base_url = strfmt::strfmt(&self.base_url, &args).map_err(|err| Error::from(ErrorKind::ParseWwwBaseUrl, err))?;
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+pub struct ToolsConfig {
+    pub twitch_app_client_id: Option<String>,
 }
 
 impl Key for Config {
