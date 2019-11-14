@@ -1,6 +1,7 @@
 use std::{
     thread,
     io::BufWriter,
+    path::PathBuf,
     fs::{ self, File },
     sync::{ Arc, RwLock },
     time::{ Instant, Duration },
@@ -85,7 +86,9 @@ pub fn run() -> Result<()> {
     log::info!("{} twitch emotes available.", n_emotes);
 
     let dir = "assets/twitchemotes";
-    fs::remove_dir_all(dir)?;
+    if PathBuf::from(dir).exists() {
+        fs::remove_dir_all(dir)?;
+    }
     fs::create_dir_all(dir)?;
 
     log::info!("Starting download...");
