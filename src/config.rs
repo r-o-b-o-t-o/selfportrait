@@ -22,15 +22,19 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Result<Self> {
-        let config_str = match std::fs::read_to_string("config.toml") {
-            Ok(contents) => contents,
+        let mut config: Self = match std::fs::read_to_string("config.toml") {
+            Ok(contents) => {
+                toml::from_str(&contents)
+                        .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))
+            },
             Err(_) => match std::env::var("SELFPORTRAIT_CONFIG") {
-                Ok(contents) => contents,
+                Ok(contents) => {
+                    serde_json::from_str(&contents)
+                                .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))
+                },
                 Err(_) => return Err(Error::new(ErrorKind::ConfigurationRead)),
             },
-        };
-        let mut config: Self = toml::from_str(&config_str)
-                                    .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))?;
+        }?;
 
         config.www.format_base_url()?;
 
