@@ -86,8 +86,7 @@ fn main() -> Result<()> {
         }
     }
 
-    let users = config.users
-                        .clone()
+    let users = config.users()
                         .into_iter()
                         .filter(|user| user.active)
                         .collect::<Vec<_>>();

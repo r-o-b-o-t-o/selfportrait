@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-#[derive(Debug, Default, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct User {
     pub active: bool,
     pub discord_id: u64,
