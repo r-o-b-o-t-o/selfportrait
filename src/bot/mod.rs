@@ -172,6 +172,7 @@ impl Bot {
             });
         }
 
+        let has_attachments = self.message_has_attachments(&msg, event);
         let mut content = String::new();
         let mut first = true;
         let mut delete = true;
@@ -207,7 +208,10 @@ impl Bot {
             self.send_message(ctx, &msg, event, |m| m.content(&content))?;
         }
 
-        Ok(delete && !self.message_has_attachments(&msg, event))
+        if delete && has_attachments {
+            self.edit_message(ctx, msg, event, |m| m.content(""))?;
+        }
+        Ok(delete && !has_attachments)
     }
 
     fn handle_text_emotes(&self, ctx: &Context, msg: &mut Option<&mut Message>, event: &Option<&MessageUpdateEvent>) -> Result<()> {
