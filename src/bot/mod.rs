@@ -186,7 +186,7 @@ impl Bot {
                     commands::Spoiler::spoilerize(&mut content);
                 }
 
-                if first {
+                if first && !empty {
                     self.edit_message(ctx, msg, event, |m| m.content(&content))?;
                     if !empty {
                         delete = false;
