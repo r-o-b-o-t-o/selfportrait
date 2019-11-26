@@ -59,6 +59,7 @@ impl EmoteManager {
                                 .file_name()
                                 .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no file name"))?
                                 .to_string_lossy()
+                                .to_lowercase()
                                 .into();
 
                 self.emotes.push(Emote {
@@ -73,6 +74,7 @@ impl EmoteManager {
     }
 
     pub fn find_emote_by_name(&self, name: &str) -> Option<&Emote> {
+        let name = name.to_lowercase();
         self.emotes.iter().find(|emote| emote.name == name)
     }
 
