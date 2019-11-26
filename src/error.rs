@@ -8,7 +8,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
     Other,
-    ConfigurationFileRead,
+    ConfigurationRead,
     ConfigurationParse,
     CtrlCHandler,
     Logging,
@@ -63,7 +63,7 @@ impl Error {
     fn type_to_str(kind: &ErrorKind) -> String {
         match kind {
             ErrorKind::Other | ErrorKind::Serenity | ErrorKind::IO => "",
-            ErrorKind::ConfigurationFileRead => "could not read the configuration file config.toml",
+            ErrorKind::ConfigurationRead => "could not read the configuration",
             ErrorKind::ConfigurationParse => "could not parse the configuration",
             ErrorKind::CtrlCHandler => "could not set the Ctrl-C handler",
             ErrorKind::Logging => "could not setup logging",

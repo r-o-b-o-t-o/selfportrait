@@ -9,8 +9,9 @@ use crate::{
 };
 
 use typemap::Key;
+use serde::{ Serialize, Deserialize };
 
-#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub logging: LoggingConfig,
     pub www: WwwConfig,
@@ -21,8 +22,13 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Result<Self> {
-        let config_str = std::fs::read_to_string("config.toml")
-                                    .map_err(|err| Error::from(ErrorKind::ConfigurationFileRead, err))?;
+        let config_str = match std::fs::read_to_string("config.toml") {
+            Ok(contents) => contents,
+            Err(_) => match std::env::var("SELFPORTRAIT_CONFIG") {
+                Ok(contents) => contents,
+                Err(_) => return Err(Error::new(ErrorKind::ConfigurationRead)),
+            },
+        };
         let mut config: Self = toml::from_str(&config_str)
                                     .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))?;
 
@@ -87,15 +93,23 @@ impl Config {
                 })
                 .collect()
     }
+
+    pub fn to_json(&self, pretty: bool) -> Result<String> {
+        if pretty {
+            Ok(serde_json::to_string_pretty(self)?)
+        } else {
+            Ok(serde_json::to_string(self)?)
+        }
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoggingConfig {
     pub file: std::path::PathBuf,
     pub level: log::LevelFilter,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WwwConfig {
     pub enabled: bool,
     pub bind_host: String,
@@ -104,7 +118,7 @@ pub struct WwwConfig {
     pub workers: usize,
 }
 
-#[derive(Debug, Default, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UserConfig {
     pub active: Option<bool>,
     pub discord_id: Option<u64>,
@@ -125,7 +139,7 @@ impl WwwConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolsConfig {
     pub twitch_app_client_id: Option<String>,
 }

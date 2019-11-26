@@ -83,6 +83,9 @@ fn main() -> Result<()> {
                 None => log::error!("No tools config found. Please specify a [tools] section in your config.toml file with your twitch_app_client_id."),
             };
             return Ok(());
+        } else if arg == "--print-config" {
+            tools::print_config::run(&config)?;
+            return Ok(());
         }
     }
 
