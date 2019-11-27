@@ -22,6 +22,7 @@ pub enum ErrorKind {
     IO,
     Serde,
     Reqwest,
+    TwitchEmotes,
 }
 
 #[derive(Debug, Clone)]
@@ -34,6 +35,13 @@ impl Error {
     pub fn new(kind: ErrorKind) -> Self {
         Self {
             message: Self::type_to_str(&kind),
+            kind,
+        }
+    }
+
+    pub fn with_message(kind: ErrorKind, message: String) -> Self {
+        Self {
+            message,
             kind,
         }
     }
@@ -75,6 +83,7 @@ impl Error {
             ErrorKind::ParseWwwBaseUrl => "could not parse www config base url",
             ErrorKind::Serde => "could not serialize/deserialize JSON",
             ErrorKind::Reqwest => "reqwest error",
+            ErrorKind::TwitchEmotes => "Twitch API error while loading emote data",
         }.into()
     }
 }

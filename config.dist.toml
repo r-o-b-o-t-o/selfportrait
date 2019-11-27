@@ -1,3 +1,6 @@
+fetch_twitch_emotes_infos = true
+twitch_app_client_id = "<client id>"
+
 [logging]
 file = "selfportrait.log"
 level = "Info"

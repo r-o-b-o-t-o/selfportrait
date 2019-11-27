@@ -22,10 +22,10 @@ use config::Config;
 pub use emote_manager::EmoteManager;
 pub use error::{ Error, ErrorKind, Result };
 
-fn load_emotes() -> Result<EmoteManager> {
+fn load_emotes(config: &Config) -> Result<EmoteManager> {
     log::info!("Loading emotes...");
     let emotes_path = PathBuf::from("assets");
-    let mngr = EmoteManager::new(&emotes_path)?;
+    let mngr = EmoteManager::new(config, &emotes_path)?;
     log::info!("Loaded {} emote assets.", mngr.n_emotes());
     Ok(mngr)
 }
@@ -78,14 +78,9 @@ fn main() -> Result<()> {
 
     for arg in std::env::args() {
         if arg == "--fetch-twitch-emotes" {
-            match &config.tools {
-                Some(config) => tools::fetch_twitch_emotes::run(config)?,
-                None => log::error!("No tools config found. Please specify a [tools] section in your config.toml file with your twitch_app_client_id."),
-            };
-            return Ok(());
+            return tools::fetch_twitch_emotes::run(&config);
         } else if arg == "--print-config" {
-            tools::print_config::run(&config)?;
-            return Ok(());
+            return tools::print_config::run(&config);
         }
     }
 
@@ -93,8 +88,8 @@ fn main() -> Result<()> {
                         .into_iter()
                         .filter(|user| user.active)
                         .collect::<Vec<_>>();
+    let emote_mngr = Arc::new(load_emotes(&config)?);
     let config = Arc::new(config);
-    let emote_mngr = Arc::new(load_emotes()?);
 
     log::info!("Starting {} bot{}...", users.len(), if users.len() > 1 { "s" } else { "" });
     for user in users {

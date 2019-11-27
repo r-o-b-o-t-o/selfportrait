@@ -17,7 +17,8 @@ pub struct Config {
     pub www: WwwConfig,
     pub default_user: UserConfig,
     pub users: Vec<UserConfig>,
-    pub tools: Option<ToolsConfig>,
+    pub fetch_twitch_emotes_infos: bool,
+    pub twitch_app_client_id: Option<String>,
 }
 
 impl Config {
@@ -145,11 +146,6 @@ impl WwwConfig {
         self.base_url = strfmt::strfmt(&self.base_url, &args).map_err(|err| Error::from(ErrorKind::ParseWwwBaseUrl, err))?;
         Ok(())
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ToolsConfig {
-    pub twitch_app_client_id: Option<String>,
 }
 
 impl Key for Config {
