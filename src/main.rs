@@ -54,6 +54,24 @@ fn setup_logging(config: &config::LoggingConfig) -> Result<()> {
         .apply().map_err(|err| Error::from(ErrorKind::Logging, err))
 }
 
+fn setup_heroku_wakeup_thread(url: String) {
+    if let Ok(val) = std::env::var("HEROKU_PREVENT_SLEEP") {
+        let val = val.parse::<i32>();
+        match val {
+            Ok(val) if val == 1 => {
+                std::thread::spawn(move || {
+                    loop {
+                        let interval = std::time::Duration::from_secs(20 * 60); // Every 20 minutes
+                        std::thread::sleep(interval);
+                        let _ = reqwest::get(&url);
+                    }
+                });
+            },
+            _ => {},
+        };
+    }
+}
+
 fn start_www(config: Arc<Config>, emote_mngr: Arc<EmoteManager>) {
     thread::spawn(move || {
         log::info!("Starting web server...");
@@ -82,6 +100,10 @@ fn main() -> Result<()> {
         } else if arg == "--print-config" {
             return tools::print_config::run(&config);
         }
+    }
+
+    if config.www.enabled {
+        setup_heroku_wakeup_thread(config.www.base_url.clone());
     }
 
     let users = config.users()
