@@ -107,8 +107,10 @@ impl EmoteManager {
     }
 
     pub fn find_twitch_emote(&self, name: &str) -> Result<Option<Emote>> {
+        let name = name.to_lowercase();
+
         // Search for the emote on disk first
-        let file_name = format!("{}.png", name.to_lowercase());
+        let file_name = format!("{}.png", name);
         let mut path = PathBuf::new();
         path.push("assets");
         path.push("twitchemotes");
@@ -120,20 +122,20 @@ impl EmoteManager {
             Ok(Some(Emote {
                 path,
                 file_name,
-                name: name.to_owned(),
+                name,
                 bytes,
             }))
         } else {
             // If not on disk, check if we have the URL for this emote and download from CDN
-            match self.twitch_emotes.get(name) {
+            match self.twitch_emotes.get(&name) {
                 Some(url) => {
                     let mut res = reqwest::get(url)?;
                     let mut bytes: Vec<u8> = Vec::new();
                     res.copy_to(&mut bytes)?;
                     Ok(Some(Emote {
                         path: PathBuf::new(),
-                        file_name: url.to_string(),
-                        name: name.to_owned(),
+                        file_name: format!("{}.png", name),
+                        name,
                         bytes,
                     }))
                 },

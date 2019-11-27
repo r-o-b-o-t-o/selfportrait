@@ -1,4 +1,4 @@
-fetch_twitch_emotes_infos = true
+fetch_twitch_emotes_infos = false
 twitch_app_client_id = "<client id>"
 
 [logging]
