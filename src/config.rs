@@ -35,6 +35,10 @@ impl Config {
                 Err(_) => return Err(Error::new(ErrorKind::ConfigurationRead)),
             },
         }?;
+        if let Ok(port) = std::env::var("PORT") {
+            config.www.bind_port = port.parse()
+                                        .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))?;
+        }
 
         config.www.format_base_url()?;
 
