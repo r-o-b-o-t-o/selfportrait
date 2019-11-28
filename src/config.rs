@@ -16,39 +16,34 @@ pub struct Config {
     pub logging: LoggingConfig,
     pub www: WwwConfig,
     pub default_user: UserConfig,
-    pub users: Vec<UserConfig>,
+    pub users: HashMap<String, UserConfig>,
     pub fetch_twitch_emotes_infos: bool,
     pub twitch_app_client_id: Option<String>,
 }
 
 impl Config {
     pub fn load() -> Result<Self> {
-        let mut config: Self = match std::fs::read_to_string("config.toml") {
-            Ok(contents) => {
-                toml::from_str(&contents)
-                        .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))
-            },
-            Err(_) => match std::env::var("SELFPORTRAIT_CONFIG") {
-                Ok(contents) => {
-                    serde_json::from_str(&contents)
-                                .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))
-                },
-                Err(_) => return Err(Error::new(ErrorKind::ConfigurationRead)),
-            },
-        }?;
+        let mut cfg = config::Config::default();
+        cfg
+            .merge(config::File::with_name("config").required(false))?
+            .merge(config::Environment::with_prefix("SELFPORTRAIT").separator("__"))?;
+        let mut cfg: Config = cfg.try_into()?;
+
         if let Ok(port) = std::env::var("PORT") {
-            config.www.bind_port = port.parse()
-                                        .map_err(|err| Error::from(ErrorKind::ConfigurationParse, err))?;
+            // Heroku web port
+            cfg.www.bind_port = port.parse()
+                                        .map_err(|err| Error::from(ErrorKind::Config, err))?;
         }
 
-        config.www.format_base_url()?;
+        cfg.www.format_base_url()?;
 
-        Ok(config)
+        Ok(cfg)
     }
 
     pub fn users(&self) -> Vec<User> {
         self.users
                 .iter()
+                .map(|pair| pair.1)
                 .map(|user_config| User {
                     active: match user_config.active {
                         Some(val) => val,

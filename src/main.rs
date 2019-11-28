@@ -18,7 +18,7 @@ use std::{
     },
 };
 
-use config::Config;
+use crate::config::Config;
 pub use emote_manager::EmoteManager;
 pub use error::{ Error, ErrorKind, Result };
 

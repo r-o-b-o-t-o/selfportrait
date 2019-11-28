@@ -8,8 +8,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
     Other,
-    ConfigurationRead,
-    ConfigurationParse,
+    Config,
     CtrlCHandler,
     Logging,
     LogFile,
@@ -71,8 +70,7 @@ impl Error {
     fn type_to_str(kind: &ErrorKind) -> String {
         match kind {
             ErrorKind::Other | ErrorKind::Serenity | ErrorKind::IO => "",
-            ErrorKind::ConfigurationRead => "could not read the configuration",
-            ErrorKind::ConfigurationParse => "could not parse the configuration",
+            ErrorKind::Config => "configuration error",
             ErrorKind::CtrlCHandler => "could not set the Ctrl-C handler",
             ErrorKind::Logging => "could not setup logging",
             ErrorKind::LogFile => "could not write to log file",
@@ -129,5 +127,11 @@ impl From<serde_json::Error> for Error {
 impl From<reqwest::Error> for Error {
     fn from(err: reqwest::Error) -> Self {
         Self::from(ErrorKind::Reqwest, err)
+    }
+}
+
+impl From<config::ConfigError> for Error {
+    fn from(err: config::ConfigError) -> Self {
+        Self::from(ErrorKind::Config, err)
     }
 }
