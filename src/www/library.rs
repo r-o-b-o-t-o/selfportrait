@@ -47,7 +47,7 @@ impl Emote {
 }
 
 #[get("/library")]
-pub fn handler(_req: HttpRequest, data: web::Data<Data>) -> HttpResponse {
+pub fn library(_req: HttpRequest, data: web::Data<Data>) -> HttpResponse {
     let mut dir_to_type_bind = HashMap::new();
     dir_to_type_bind.insert("emojis".to_string(), "Emoji".to_string());
     dir_to_type_bind.insert("gifs".to_string(), "GIF".to_string());
@@ -78,6 +78,10 @@ pub fn handler(_req: HttpRequest, data: web::Data<Data>) -> HttpResponse {
                 emotes: vec![serializable_emote],
             }),
         };
+    }
+
+    for list in library.0.iter_mut() {
+        list.emotes.sort_by(|a, b| a.name.partial_cmp(&b.name).unwrap());
     }
 
     HttpResponse::Ok()

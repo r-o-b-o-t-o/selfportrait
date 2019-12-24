@@ -61,7 +61,7 @@ fn setup_heroku_wakeup_thread(url: String) {
             Ok(val) if val == 1 => {
                 std::thread::spawn(move || {
                     loop {
-                        let interval = std::time::Duration::from_secs(20 * 60); // Every 20 minutes
+                        let interval = std::time::Duration::from_secs(10 * 60); // Every 10 minutes
                         std::thread::sleep(interval);
                         let _ = reqwest::get(&url);
                     }
