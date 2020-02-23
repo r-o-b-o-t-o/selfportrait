@@ -26,7 +26,7 @@ impl Emote {
 pub struct EmoteManager {
     emotes: Vec<Emote>,
     text_emotes: Vec<(Vec<&'static str>, &'static str)>,
-    twitch_emotes: HashMap<String, String>,
+    twitch_emotes: HashMap<String, u32>,
 }
 
 impl EmoteManager {
@@ -35,7 +35,7 @@ impl EmoteManager {
             emotes: Vec::new(),
             text_emotes: vec![
                 (vec!["lf", "lennyface", "lenny"], "( ͡° ͜ʖ ͡°)"),
-                (vec!["shrug", "s"], "¯\\\\\\_(ツ)\\_/¯"),
+                (vec!["shrug", "s"], r"¯\\\_(ツ)\_/¯"),
             ],
             twitch_emotes: HashMap::new(),
         };
@@ -47,6 +47,9 @@ impl EmoteManager {
         }
 
         if config.fetch_twitch_emotes_infos {
+            // Matches for instance https://static-cdn.jtvnw.net/emoticons/v1/{id}/3.0
+            let re = regex::Regex::new(r"https://.*/emoticons/v\d+/(\d+)/\d\.\d").unwrap();
+
             if let Some(client_id) = &config.twitch_app_client_id {
                 let twitch_emotes_json = crate::tools::fetch_twitch_emotes::get_list_from_api(client_id);
                 match twitch_emotes_json {
@@ -54,9 +57,13 @@ impl EmoteManager {
                         Ok(twitch_emotes) => {
                             drop(json);
                             for emote in twitch_emotes.emoticons {
-                                let url = emote.images.url.replace("1.0", "3.0");
                                 let name = emote.regex.to_lowercase();
-                                mngr.twitch_emotes.insert(name, url);
+                                if let Some(captures) = re.captures(&emote.images.url) {
+                                    if captures.len() >= 1 {
+                                        let id: u32 = captures[1].parse().unwrap();
+                                        mngr.twitch_emotes.insert(name, id);
+                                    }
+                                };
                             }
                             log::info!("Loaded {} Twitch emotes URLs", mngr.twitch_emotes.len());
                         },
@@ -128,8 +135,9 @@ impl EmoteManager {
         } else {
             // If not on disk, check if we have the URL for this emote and download from CDN
             match self.twitch_emotes.get(&name) {
-                Some(url) => {
-                    let mut res = reqwest::get(url)?;
+                Some(id) => {
+                    let url = format!("https://static-cdn.jtvnw.net/emoticons/v1/{}/3.0", id);
+                    let mut res = reqwest::get(&url)?;
                     let mut bytes: Vec<u8> = Vec::new();
                     res.copy_to(&mut bytes)?;
                     Ok(Some(Emote {

@@ -146,7 +146,7 @@ impl Bot {
                             .zip(captures.iter())
                             .zip(twitch_emotes.iter())
                             .map(|((split, capture), twitch_emote)| EmoteMessage {
-                                content: split.to_string(),
+                                content: (*split).to_string(),
                                 capture: capture[0].to_owned(),
                                 whitespace: capture[1].to_owned(),
                                 emote: if &capture["prefix"] == prefix {

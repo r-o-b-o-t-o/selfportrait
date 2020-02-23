@@ -126,12 +126,12 @@ fn main() -> Result<()> {
     }
 
     if config.www.enabled {
-        start_www(config.clone(), emote_mngr.clone());
+        start_www(config, emote_mngr);
     }
 
     let run = Arc::new(AtomicBool::new(true));
     setup_ctrl_c(run.clone())?;
-    wait_loop(run.clone());
+    wait_loop(run);
 
     log::info!("Shutting down.");
     Ok(())

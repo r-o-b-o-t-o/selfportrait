@@ -3,7 +3,7 @@ twitch_app_client_id = "<client id>"
 
 [logging]
 file = "selfportrait.log"
-level = "Info"
+level = "INFO"
 
 [www]
 enabled = true
