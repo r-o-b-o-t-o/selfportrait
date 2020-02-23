@@ -47,7 +47,7 @@ impl EventHandler for Bot {
         }
     }
 
-    fn message_update(&self, ctx: Context, _old: Option<Message>, _new: Option<Message>, event: MessageUpdateEvent) {
+    fn message_update(&self, ctx: Context, event: MessageUpdateEvent) {
         if let Some(author) = &event.author {
             if author.id != self.user.discord_id {
                 // Update only messages sent by the user themselves
