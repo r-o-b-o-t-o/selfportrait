@@ -1,7 +1,7 @@
 mod data;
 mod index;
-mod library;
 mod palette;
+pub mod library;
 
 use std::sync::Arc;
 
@@ -24,6 +24,7 @@ pub fn start(config: &WwwConfig, emote_mngr: Arc<EmoteManager>) -> Result<()> {
             .service(actix_files::Files::new("/assets", "assets"))
             .service(index::index)
             .service(library::library)
+            .service(library::library_twitch)
             .service(palette::palette)
     })
     .disable_signals()

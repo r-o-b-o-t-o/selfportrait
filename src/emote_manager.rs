@@ -4,8 +4,9 @@ use std::{
 };
 
 use crate::{
-    Error, ErrorKind, Result,
+    www::library,
     config::Config,
+    Error, ErrorKind, Result,
 };
 
 use typemap::Key;
@@ -111,6 +112,55 @@ impl EmoteManager {
     pub fn find_emote_by_name(&self, name: &str) -> Option<&Emote> {
         let name = name.to_lowercase();
         self.emotes.iter().find(|emote| emote.name == name)
+    }
+
+    pub fn find_twitch_emote_urls(&self, query: &str, limit: usize) -> Result<Vec<library::Emote>> {
+        let query = query.to_lowercase();
+        let limit = limit.min(50); // Clamp the limit to 50 if it is higher
+
+        if !self.twitch_emotes.is_empty() {
+            Ok(self.twitch_emotes
+                    .iter()
+                    .filter(|emote| emote.0.contains(&query))
+                    .take(limit)
+                    .map(|emote| library::Emote {
+                        name: emote.0.into(),
+                        url: format!("https://static-cdn.jtvnw.net/emoticons/v1/{}/3.0", emote.1),
+                    })
+                    .collect::<Vec<_>>())
+        } else {
+            let mut emotes = Vec::new();
+            let mut path = PathBuf::new();
+            path.push("assets");
+            path.push("twitchemotes");
+            if path.exists() {
+                fn scandir(path: &Path, query: &str, emotes: &mut Vec<library::Emote>, count: &mut usize, limit: usize) -> std::io::Result<()> {
+                    for entry in std::fs::read_dir(path)? {
+                        let entry = entry?;
+                        let file_name = entry.file_name();
+                        let file_name = file_name.to_str().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "Could not turn file name to string"))?;
+                        if entry.file_type()?.is_file() && file_name.contains(query) {
+                            emotes.push(library::Emote::new(&entry.path()
+                                                        .with_extension("")
+                                                        .file_name()
+                                                        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "No file name"))?
+                                                        .to_string_lossy(), &entry.path()));
+                            *count += 1;
+                            if *count == limit {
+                                return Ok(());
+                            }
+                        } else if entry.file_type()?.is_dir() {
+                            scandir(&entry.path(), query, emotes, count, limit)?;
+                        }
+                    }
+                    Ok(())
+                }
+
+                let mut count = 0;
+                scandir(&path, &query, &mut emotes, &mut count, limit)?;
+            }
+            Ok(emotes)
+        }
     }
 
     pub fn find_twitch_emote(&self, name: &str) -> Result<Option<Emote>> {

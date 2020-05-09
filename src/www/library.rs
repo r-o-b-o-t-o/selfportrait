@@ -6,7 +6,7 @@ use std::{
 
 use super::Data;
 
-use serde::Serialize;
+use serde::{ Serialize, Deserialize };
 use actix_web::{ web, http, HttpRequest, HttpResponse };
 
 #[derive(Serialize, Default)]
@@ -25,7 +25,7 @@ struct List {
 }
 
 #[derive(Serialize)]
-struct Emote {
+pub struct Emote {
     pub name: String,
     pub url: String,
 }
@@ -87,4 +87,26 @@ pub fn library(_req: HttpRequest, data: web::Data<Data>) -> HttpResponse {
     HttpResponse::Ok()
         .set_header(http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
         .json(library)
+}
+
+#[derive(Deserialize, Debug)]
+pub struct TwitchSearchType {
+    pub query: String,
+    pub limit: usize,
+}
+
+#[get("/library/twitch")]
+pub fn library_twitch(search: web::Query<TwitchSearchType>, data: web::Data<Data>) -> HttpResponse {
+    let emotes = match data.emote_mngr.find_twitch_emote_urls(search.query.as_ref(), search.limit) {
+        Ok(emotes) => emotes,
+        Err(err) => {
+            log::error!("An error occurred (/library/twitch): {}", err);
+            return HttpResponse::InternalServerError()
+                                .body("An internal error occurred.");
+        },
+    };
+
+    HttpResponse::Ok()
+        .set_header(http::header::ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+        .json(emotes)
 }
