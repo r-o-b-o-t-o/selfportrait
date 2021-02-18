@@ -8,6 +8,8 @@ jobs:
 
         steps:
         - uses: actions/checkout@v1
+          with:
+            rust-version: 1.50
         - name: Build
           run: cargo build --verbose
         - name: Run tests
