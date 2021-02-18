@@ -1,16 +1,29 @@
-name: Rust
-
 on: [push]
 
-jobs:
-    build:
-        runs-on: ubuntu-latest
+name: Rust
 
-        steps:
-        - uses: actions/checkout@v1
-          with:
-            rust-version: 1.50
-        - name: Build
-          run: cargo build --verbose
-        - name: Run tests
-          run: cargo test --verbose
+jobs:
+  check:
+    name: Rust project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+            components: clippy
+
+      - name: Run checks
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
