@@ -97,7 +97,7 @@ pub struct TwitchSearchType {
 
 #[get("/library/twitch")]
 pub fn library_twitch(search: web::Query<TwitchSearchType>, data: web::Data<Data>) -> HttpResponse {
-    let emotes = match data.emote_mngr.find_twitch_emote_urls(search.query.as_ref(), search.limit) {
+    let emotes = match data.emote_mngr.find_twitch_emote_urls(search.query.as_ref(), search.limit, false) {
         Ok(emotes) => emotes,
         Err(err) => {
             log::error!("An error occurred (/library/twitch): {}", err);

@@ -95,9 +95,7 @@ fn main() -> Result<()> {
     setup_logging(&config.logging)?;
 
     for arg in std::env::args() {
-        if arg == "--fetch-twitch-emotes" {
-            return tools::fetch_twitch_emotes::run(&config);
-        } else if arg == "--print-config" {
+        if arg == "--print-config" {
             return tools::print_config::run(&config);
         }
     }

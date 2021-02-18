@@ -1,6 +1,3 @@
-fetch_twitch_emotes_infos = false
-twitch_app_client_id = "<client id>"
-
 [logging]
 file = "selfportrait.log"
 level = "INFO"
@@ -11,6 +8,8 @@ bind_host = "127.0.0.1"
 bind_port = 41653
 base_url = "http://selfportrait.mywebsite.com:{port}"
 workers = 4
+twitch_emotes_manager_host = "roboto.space"
+twitch_emotes_manager_port = 41654
 
 [default_user]
 active = true

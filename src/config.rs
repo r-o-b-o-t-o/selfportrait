@@ -17,8 +17,6 @@ pub struct Config {
     pub www: WwwConfig,
     pub default_user: UserConfig,
     pub users: HashMap<String, UserConfig>,
-    pub fetch_twitch_emotes_infos: bool,
-    pub twitch_app_client_id: Option<String>,
 }
 
 impl Config {
@@ -120,6 +118,8 @@ pub struct WwwConfig {
     pub bind_port: u16,
     pub base_url: String,
     pub workers: usize,
+    pub twitch_emotes_manager_host: String,
+    pub twitch_emotes_manager_port: u16,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
